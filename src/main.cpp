@@ -6,20 +6,28 @@
 #include <EasyButton.h>
 #include "Countimer.h"
 #include <LowPower.h>
+#include <EEPROM.h>
 
-static const byte STUDY_STATE = 0;
-static const byte BREAK_STATE = 1;
-static const byte LONG_BREAK_STATE = 2;
-static const byte RUNNING_STUDY_STATE = 3;
-static const byte STOPPED_STUDY_STATE = 4;
-static const byte RUNNING_BREAK_STATE = 5;
-static const byte STOPPED_BREAK_STATE = 6;
+static const byte STUDY_IDLE_STATE = 0;
+static const byte BREAK_IDLE_STATE = 1;
+static const byte LONG_BREAK_IDLE_STATE = 2;
+static const byte STUDY_RUNNING_STATE = 3;
+static const byte STUDY_STOPPED_STATE = 4;
+static const byte BREAK_RUNNING_STATE = 5;
+static const byte BREAK_STOPPED_STATE = 6;
+static const byte LONG_BREAK_RUNNING_STATE = 7;
+static const byte LONG_BREAK_STOPPED_STATE = 8;
 static const byte SHUTDOWN_STATE = -1;
 
-static const byte RESTART_BUTTON_PIN = 12;
 static const byte START_STOP_BUTTON_PIN = 11;
 static const byte NEXT_BUTTON_PIN = 10;
 static const byte BUZZER_PIN = 4;
+
+static const byte DEFAULT_STUDY_MINUTES = 20;
+static const byte DEFAULT_BREAK_MINUTES = 4;
+static const byte DEFAULT_LONG_BREAK_MINUTES = 40;
+
+static const byte MAX_STUDY_SESSIONS_IN_A_ROW = 4;
 
 U8G2_SSD1306_128X64_NONAME_1_4W_SW_SPI display(U8G2_R0, /* clock=*/5, /* data=*/6, /* cs=*/9, /* dc=*/8, /* reset=*/7);
 
@@ -29,12 +37,16 @@ const char music2[] PROGMEM = "Don'tTur:d=4,o=5,b=100:16a#6,16g#6,16a#6,16g#6,8a
 const char music3[] PROGMEM = "Barbiegi:d=4,o=5,b=100:16a#6,16f#6,16a#6,16d#7,8a#6,8p,16g#6,16c#6,16g#6,16c#7,8a#6,8p";
 Rtttl player; // Song player
 
-EasyButton restartButton(RESTART_BUTTON_PIN);
 EasyButton startStopButton(START_STOP_BUTTON_PIN);
 EasyButton nextButton(NEXT_BUTTON_PIN);
 
-byte state = STUDY_STATE;
+byte state = STUDY_IDLE_STATE;
 Countimer tdown;
+
+byte studyMinutes = DEFAULT_STUDY_MINUTES;
+byte breakMinutes = DEFAULT_BREAK_MINUTES;
+byte longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
+byte studySessionsInARow = 0;
 
 void drawFrame(const unsigned char *frame, int size)
 {
@@ -138,56 +150,276 @@ void drawClockFace()
     }
 }
 
-void initializeState()
+void drawPauseSign()
 {
-    Serial.println("initializeState");
+    //draw black center
+    display.setDrawColor(0);
+    display.drawDisc(15, 40, 2, U8G2_DRAW_ALL);
+    display.setDrawColor(1);
+
+    display.drawRBox(10, 30, 4, 20, 1);
+    display.drawRBox(20, 30, 4, 20, 1);
+}
+
+void drawStudySprite()
+{
+    display.drawXBMP(70, 15, 32, 32, STUDY_SPRITE);
+}
+
+void drawBreakSprite()
+{
+    display.drawXBMP(70, 15, 32, 32, BREAK_SPRITE);
+}
+
+void drawLongBreakSprite()
+{
+    display.drawXBMP(70, 15, 32, 32, LONG_BREAK_SPRITE);
+}
+
+void reDrawScreen()
+{
+    Serial.print("reDrawScreen, state = ");
+    Serial.println(state);
+
     display.firstPage();
     do
     {
         drawClockFace();
+
+        display.setFont(u8g2_font_open_iconic_check_1x_t);
+        for (int i = 0; i < studySessionsInARow; i++)
+        {
+            display.drawGlyph(60 + i * 15, 10, 67); //checkbox
+        }
+
+        display.setFont(u8g2_font_ncenB12_tn);
+        Serial.print(tdown.getCurrentMinutes());
+        Serial.print(":");
+        Serial.println(tdown.getCurrentSeconds());
+
+        byte timeLeft = tdown.getCurrentMinutes() > 0 ? tdown.getCurrentMinutes() : tdown.getCurrentSeconds();
+        switch (state)
+        {
+        case STUDY_IDLE_STATE:
+            drawStudySprite();
+            break;
+        case BREAK_IDLE_STATE:
+            drawBreakSprite();
+            break;
+        case LONG_BREAK_IDLE_STATE:
+            drawLongBreakSprite();
+            break;
+        case STUDY_RUNNING_STATE:
+            drawMinustesLeftSlice(15, 40, 23, timeLeft);
+            drawStudySprite();
+            break;
+        case STUDY_STOPPED_STATE:
+            drawPauseSign();
+            drawStudySprite();
+            break;
+        case BREAK_RUNNING_STATE:
+            drawMinustesLeftSlice(15, 40, 23, timeLeft);
+            drawBreakSprite();
+            break;
+        case BREAK_STOPPED_STATE:
+            drawPauseSign();
+            drawBreakSprite();
+            break;
+        case LONG_BREAK_RUNNING_STATE:
+            drawMinustesLeftSlice(15, 40, 23, timeLeft);
+            drawLongBreakSprite();
+            break;
+        case LONG_BREAK_STOPPED_STATE:
+            drawPauseSign();
+            drawLongBreakSprite();
+            break;
+
+        default:
+            break;
+        }
+
+        // drat time string
+        char buffer[10];
+        sprintf(buffer, "%02d:%02d", tdown.getCurrentMinutes(), tdown.getCurrentSeconds());
+        display.drawStr(60, 64, buffer);
     } while (display.nextPage());
 }
 
-void wakeUp() {
-  detachInterrupt(0); //execution resumes from here after wake-up
-  Serial.println("wakeUp");
-  delay(4000);
-  initializeState();
-  //compensate for ghost button presses
-  state = (state - 1) % 4;
+void initializeState()
+{
+    Serial.println("initializeState");
+    state = STUDY_IDLE_STATE;
+    tdown.setCounter(0, studyMinutes, 0);
+    reDrawScreen();
 }
 
-
-void goDeepSleep() {
-  Serial.println("goDeepSleep");
-  delay(4000);
-  attachInterrupt(0, wakeUp, LOW);                       //use interrupt 0 (pin PD2) and run function wakeUp when pin 2 gets LOW
-  Serial.println("attachInterrupt");
-  LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);   //arduino enters sleep mode here
+void wakeUp()
+{
+    Serial.println("Wakeup");
+    detachInterrupt(0); //execution resumes from here after wake-up
+    Serial.println("wakeUp");
+    delay(4000);
+    display.sleepOff();
+    initializeState();
+    //compensate for ghost button presses
+    state = (state - 1) % 4;
 }
 
-
-
-
-void onRestartButtonPressed() {
-  Serial.println("onRestartButtonPressed");
+void goDeepSleep()
+{
+    Serial.println("goDeepSleep");
+    delay(4000);
+    attachInterrupt(0, wakeUp, LOW); //use interrupt 0 (pin PD2) and run function wakeUp when pin 2 gets LOW
+    Serial.println("attachInterrupt");
+    display.clearDisplay();
+    display.sleepOn();
+    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); //arduino enters sleep mode here
 }
 
-
-void onStartStopButtonPressed() {
-  Serial.println("onStartStopButtonPressed");
+void onStartStopButtonPressed()
+{
+    Serial.print("onStartStopButtonPressed, state = ");
+    Serial.println(state);
+    if (state == STUDY_IDLE_STATE || state == STUDY_STOPPED_STATE)
+    {
+        state = STUDY_RUNNING_STATE;
+        tdown.start();
+    }
+    else if (state == STUDY_RUNNING_STATE)
+    {
+        state = STUDY_STOPPED_STATE;
+        tdown.pause();
+    }
+    else if (state == BREAK_IDLE_STATE || state == BREAK_STOPPED_STATE)
+    {
+        state = BREAK_RUNNING_STATE;
+        tdown.start();
+    }
+    else if (state == BREAK_RUNNING_STATE)
+    {
+        state = BREAK_STOPPED_STATE;
+        tdown.pause();
+    }
+    else if (state == LONG_BREAK_IDLE_STATE || state == LONG_BREAK_STOPPED_STATE)
+    {
+        state = LONG_BREAK_RUNNING_STATE;
+        tdown.start();
+    }
+    else if (state == LONG_BREAK_RUNNING_STATE)
+    {
+        state = LONG_BREAK_STOPPED_STATE;
+        tdown.pause();
+    }
+    reDrawScreen();
 }
 
-
-void onNextButtonPressed() {
-  Serial.println("onNextButtonPressed");
+void onstartStopButtonPressedForDuration()
+{
+    Serial.print("onstartStopButtonPressedForDuration, state = ");
+    Serial.println(state);
+    tdown.restart();
+    reDrawScreen();
 }
 
-
-void onNextButtonPressedForDuration() {
-  Serial.println("onNextButtonPressedForDuration");
+void onCountDownComplete()
+{
+    Serial.print("onCountDownComplete, state = ");
+    Serial.println(state);
+    if (state == STUDY_RUNNING_STATE)
+    {
+        studySessionsInARow++;
+        player.play_P(music1, octave);
+        if (studySessionsInARow == MAX_STUDY_SESSIONS_IN_A_ROW)
+        {
+            state = LONG_BREAK_IDLE_STATE;
+            tdown.setCounter(0, longBreakMinutes, 0);
+            studySessionsInARow = 0;
+        }
+        else
+        {
+            state = BREAK_IDLE_STATE;
+            tdown.setCounter(0, breakMinutes, 0);
+        }
+    }
+    else if (state == BREAK_RUNNING_STATE)
+    {
+        player.play_P(music2, octave);
+        state = STUDY_IDLE_STATE;
+        tdown.setCounter(0, studyMinutes, 0);
+    }
+    else if (state == LONG_BREAK_RUNNING_STATE)
+    {
+        player.play_P(music3, octave);
+        state = STUDY_IDLE_STATE;
+        tdown.setCounter(0, studyMinutes, 0);
+    }
+    reDrawScreen();
 }
 
+void onNextButtonPressed()
+{
+    Serial.print("onNextButtonPressed, state = ");
+    Serial.println(state);
+    if (state == STUDY_IDLE_STATE || state == STUDY_RUNNING_STATE || state == STUDY_STOPPED_STATE)
+    {
+        state = BREAK_IDLE_STATE;
+        tdown.stop();
+        tdown.setCounter(0, breakMinutes, 0);
+    }
+    else if (state == BREAK_IDLE_STATE || state == BREAK_RUNNING_STATE || state == BREAK_STOPPED_STATE)
+    {
+        state = LONG_BREAK_IDLE_STATE;
+        tdown.stop();
+        tdown.setCounter(0, longBreakMinutes, 0);
+    }
+    else if (state == LONG_BREAK_IDLE_STATE || state == LONG_BREAK_RUNNING_STATE || state == LONG_BREAK_STOPPED_STATE)
+    {
+        state = STUDY_IDLE_STATE;
+        tdown.stop();
+        tdown.setCounter(0, studyMinutes, 0);
+    }
+
+    reDrawScreen();
+}
+
+void onNextButtonPressedForDuration()
+{
+    Serial.print("onNextButtonPressedForDuration, state = ");
+    Serial.println(state);
+    goDeepSleep();
+}
+
+void eepromWrite()
+{
+    EEPROM.write(0, studyMinutes);
+    EEPROM.write(1, breakMinutes);
+    EEPROM.write(2, longBreakMinutes);
+}
+
+void eepromRead()
+{
+    studyMinutes = EEPROM.read(0);
+    breakMinutes = EEPROM.read(1);
+    longBreakMinutes = EEPROM.read(3);
+    Serial.print("original EEPROM read: ");
+    Serial.print(studyMinutes);
+    Serial.print(",");
+    Serial.print(breakMinutes);
+    Serial.print(",");
+    Serial.println(longBreakMinutes);
+    if (studyMinutes < 0 || studyMinutes > 60)
+        studyMinutes = DEFAULT_STUDY_MINUTES;
+    if (breakMinutes < 0 || breakMinutes > 60)
+        breakMinutes = DEFAULT_BREAK_MINUTES;
+    if (longBreakMinutes < 0 || longBreakMinutes > 60)
+        longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
+    Serial.print("corrected EEPROM read: ");
+    Serial.print(studyMinutes);
+    Serial.print(",");
+    Serial.print(breakMinutes);
+    Serial.print(",");
+    Serial.println(longBreakMinutes);
+}
 
 void setup()
 {
@@ -197,72 +429,31 @@ void setup()
 
     Serial.println("Setup");
 
-    pinMode(RESTART_BUTTON_PIN, INPUT_PULLUP);
     pinMode(START_STOP_BUTTON_PIN, INPUT_PULLUP);
     pinMode(NEXT_BUTTON_PIN, INPUT_PULLUP);
     pinMode(BUZZER_PIN, OUTPUT);
 
-    restartButton.begin();
-    restartButton.onPressed(onRestartButtonPressed);
     startStopButton.begin();
     startStopButton.onPressed(onStartStopButtonPressed);
+    startStopButton.onPressedFor(1000, onstartStopButtonPressedForDuration);
+
     nextButton.begin();
     nextButton.onPressed(onNextButtonPressed);
     nextButton.onPressedFor(1000, onNextButtonPressedForDuration);
 
-    player.begin(BUZZER_PIN); // Starts the player
+    player.begin(BUZZER_PIN);
 
     display.begin();
 
+    tdown.setInterval(reDrawScreen, 333);
+    tdown.setCounter(0, 0, 0, CountType::COUNT_DOWN, onCountDownComplete);
+
     initializeState();
-
-    //player.play_P(music1, octave);
-    // player.play_P(music2, octave);
-
-    // player.play_P(music3, octave);
 }
 
-byte studyTime = 25;
-byte breakTime = 5;
-
-byte i = studyTime;
 void loop()
 {
-    /*
-    if (state == false)
-    {
-        byte minutes = i--;
-        display.firstPage();
-        do
-        {
-            drawClockFace();
-            drawMinustesLeftSlice(15, 40, 23, minutes);
-            display.drawXBMP(74, 10, 50, 50, STUDY_SPRITE);
-        } while (display.nextPage());
-        if (i == 0)
-        {
-            state = true;
-            i = breakTime;
-        }
-    }
-    else
-    {
-
-        byte minutes = i--;
-        display.firstPage();
-        do
-        {
-            drawClockFace();
-            drawMinustesLeftSlice(15, 40, 23, minutes);
-            display.drawXBMP(64, 10, 50, 44, BREAK_SPRITE);
-        } while (display.nextPage());
-        if (i == 0)
-        {
-            state = false;
-            i = studyTime;
-        }
-    }
-
-    delay(1000);
-    */
+    startStopButton.read();
+    nextButton.read();
+    tdown.run();
 }
