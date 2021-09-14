@@ -1,17 +1,11 @@
 #include "Arduino.h"
 #include "OledMenu.h"
 
-OledMenu::OledMenu(U8G2 display, byte size)
+OledMenu::OledMenu(U8G2 display, MenuItem* items, byte size)
 {
     _display = display;
     _menuItemsLength = size;
-   // _menuItems = (MenuItem *)malloc(sizeof(MenuItem) * size);
-}
-
-void OledMenu::addItem(MenuItem item)
-{
-    _menuItems[_menuItemsLength] = item;
-    _menuItemsLength++;
+    _menuItems = items;
 }
 
 void OledMenu::up()
@@ -32,16 +26,11 @@ void OledMenu::enter()
     _menuItems[_selectedMenuIndex].enter();
 }
 
-void OledMenu::back()
-{
-    Serial.println(F("OledMenu.back"));
-}
-
 void OledMenu::drawScreen()
 {
     Serial.println(F("OledMenu.drawScreen"));
 
-    // if (_activeItem == NULL)
+    if (_activeItem == NULL)
     {
         const byte fontHeigh = 13;
         const byte offset = 1 + fontHeigh;
@@ -64,11 +53,11 @@ void OledMenu::drawScreen()
                     _display.print(' ');
                 }
                 String name = _menuItems[i].getName();
-                //Serial.println(name);
                 _display.print(name);
             }
         } while (_display.nextPage());
     }
+
     // else
     // {
     //_activeItem.d

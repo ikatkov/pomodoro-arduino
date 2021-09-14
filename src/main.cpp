@@ -51,12 +51,16 @@ byte studySessionsInARow = 0;
 
 bool menuMode;
 
-void sampleFunction()
-{
-    Serial.println("sampleFunction");
-}
+MenuScreen studyTimeScreen = MenuScreen("Study time");
 
-OledMenu menu = OledMenu(display, 5);
+MenuItem firstList[4] = {
+    {"Study time", &studyTimeScreen},
+    {"Break time"},
+    {"Long Break time"},
+    {"Cancel", [](){menuMode = false;}}
+    };
+
+OledMenu menu = OledMenu(display, firstList, 4);
 
 void drawFrame(const unsigned char *frame, int size)
 {
@@ -554,11 +558,12 @@ void setup()
 
     initializeState();
 
-//[](){ Serial.println("lambda"); }))
-    menu.addItem(LineItem("Study Time"));
-    menu.addItem(LineItem("Break Time"));
-    menu.addItem(LineItem("Long Break Time"));
-    menu.addItem(LineItem("Cancel"));
+
+    //[](){ Serial.println("lambda"); }))
+    //menu.addItem(LineItem("Study Time"));
+    // menu.addItem(LineItem("Break Time"));
+    // menu.addItem(LineItem("Long Break Time"));
+    // menu.addItem(LineItem("Cancel"));
 }
 
 void loop()

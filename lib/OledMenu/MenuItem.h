@@ -2,22 +2,26 @@
 #define MenuItem_h
 
 #include "Arduino.h"
-#include "U8g2lib.h"
+#include "MenuScreen.h"
 
 class MenuItem
 {
 public:
-  MenuItem();
-  ~MenuItem() {}
+  typedef void (*callback_t)(); 
 
-  virtual void drawScreen(U8G2 display);
-  virtual String getName();
+  MenuItem(String name);
+  MenuItem(String name, MenuScreen* screen);
+  MenuItem(String name, callback_t callback);
+  String getName();
   void enter();
   bool isActive();
   void setActive(bool value);
 
-protected:
+private:
+  String _name;
   bool _active;
+  callback_t _callback;
+  MenuScreen* _screen;
 };
 
 #endif
