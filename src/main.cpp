@@ -5,8 +5,9 @@
 #include "rtttl.h"
 #include <EasyButton.h>
 #include "Countimer.h"
-#include <LowPower.h>
+//#include <LowPower.h>
 #include <EEPROM.h>
+#include "OledMenu.h"
 
 static const byte STUDY_IDLE_STATE = 0;
 static const byte BREAK_IDLE_STATE = 1;
@@ -47,6 +48,15 @@ byte studyMinutes = DEFAULT_STUDY_MINUTES;
 byte breakMinutes = DEFAULT_BREAK_MINUTES;
 byte longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
 byte studySessionsInARow = 0;
+
+bool menuMode;
+
+void sampleFunction()
+{
+    Serial.println("sampleFunction");
+}
+
+OledMenu menu = OledMenu(display, 5);
 
 void drawFrame(const unsigned char *frame, int size)
 {
@@ -176,10 +186,8 @@ void drawLongBreakSprite()
     display.drawXBMP(70, 15, 32, 32, LONG_BREAK_SPRITE);
 }
 
-void reDrawScreen()
+void reDrawRegularScreen()
 {
-    Serial.print("reDrawScreen, state = ");
-    Serial.println(state);
 
     display.firstPage();
     do
@@ -193,9 +201,9 @@ void reDrawScreen()
         }
 
         display.setFont(u8g2_font_ncenB12_tn);
-        Serial.print(tdown.getCurrentMinutes());
-        Serial.print(":");
-        Serial.println(tdown.getCurrentSeconds());
+        // Serial.print(tdown.getCurrentMinutes());
+        // Serial.print(":");
+        // Serial.println(tdown.getCurrentSeconds());
 
         byte timeLeft = tdown.getCurrentMinutes() > 0 ? tdown.getCurrentMinutes() : tdown.getCurrentSeconds();
         switch (state)
@@ -245,14 +253,62 @@ void reDrawScreen()
     } while (display.nextPage());
 }
 
+void reDrawMenuScreen()
+{
+    Serial.println("reDrawMenuScreen");
+    menu.drawScreen();
+    /*
+    //9px tall font
+    byte fontHeigh = 9;
+    display.setFont(u8g2_font_6x13B_mf);
+    display.clearDisplay();
+    display.setDrawColor(1);
+    display.firstPage();
+    do
+    {
+        for (int i = 0; i < totalMenuElements; i++)
+        { // for each menu item
+            display.setCursor(0, 11 + i * 13);
+            if (i == currentMenuIndex)
+            {
+                display.drawBox(0, i*9, 128, 9);
+                display.setDrawColor(0);
+            }
+            else
+            {
+                display.setDrawColor(1);
+            }
+            display.print(menuItems[i]);
+        }
+
+    } while (display.nextPage());
+    */
+}
+
+void reDrawScreen()
+{
+    Serial.print("reDrawScreen, state = ");
+    Serial.println(state);
+    if (menuMode)
+    {
+        reDrawMenuScreen();
+    }
+    else
+    {
+        reDrawRegularScreen();
+    }
+}
+
 void initializeState()
 {
     Serial.println("initializeState");
     state = STUDY_IDLE_STATE;
     tdown.setCounter(0, studyMinutes, 0);
+    //menuMode = true;
     reDrawScreen();
 }
 
+/*
 void wakeUp()
 {
     Serial.println("Wakeup");
@@ -275,11 +331,13 @@ void goDeepSleep()
     display.sleepOn();
     LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); //arduino enters sleep mode here
 }
+*/
 
-void onStartStopButtonPressed()
+void onStartStopButtonPressedRegular()
 {
-    Serial.print("onStartStopButtonPressed, state = ");
+    Serial.print("onStartStopButtonPressedRegular, state = ");
     Serial.println(state);
+
     if (state == STUDY_IDLE_STATE || state == STUDY_STOPPED_STATE)
     {
         state = STUDY_RUNNING_STATE;
@@ -311,6 +369,25 @@ void onStartStopButtonPressed()
         tdown.pause();
     }
     reDrawScreen();
+}
+
+void onStartStopButtonPressedMenu()
+{
+    Serial.print("onStartStopButtonPressedMenu");
+    menu.up();
+    reDrawScreen();
+}
+
+void onStartStopButtonPressed()
+{
+    if (menuMode)
+    {
+        onStartStopButtonPressedMenu();
+    }
+    else
+    {
+        onStartStopButtonPressedRegular();
+    }
 }
 
 void onstartStopButtonPressedForDuration()
@@ -356,7 +433,7 @@ void onCountDownComplete()
     reDrawScreen();
 }
 
-void onNextButtonPressed()
+void onNextButtonPressedRegular()
 {
     Serial.print("onNextButtonPressed, state = ");
     Serial.println(state);
@@ -382,11 +459,38 @@ void onNextButtonPressed()
     reDrawScreen();
 }
 
+void onNextButtonPressedMenu()
+{
+    Serial.print("onNextButtonPressedMenu");
+    menu.down();
+    reDrawScreen();
+}
+
+void onNextButtonPressed()
+{
+    if (menuMode)
+    {
+        onNextButtonPressedMenu();
+    }
+    else
+    {
+        onNextButtonPressedRegular();
+    }
+}
+
 void onNextButtonPressedForDuration()
 {
     Serial.print("onNextButtonPressedForDuration, state = ");
     Serial.println(state);
-    goDeepSleep();
+    if (!menuMode)
+    {
+        menuMode = true;
+    }
+    else
+    {
+        menu.enter();
+    }
+    reDrawScreen();
 }
 
 void eepromWrite()
@@ -449,6 +553,12 @@ void setup()
     tdown.setCounter(0, 0, 0, CountType::COUNT_DOWN, onCountDownComplete);
 
     initializeState();
+
+//[](){ Serial.println("lambda"); }))
+    menu.addItem(LineItem("Study Time"));
+    menu.addItem(LineItem("Break Time"));
+    menu.addItem(LineItem("Long Break Time"));
+    menu.addItem(LineItem("Cancel"));
 }
 
 void loop()
