@@ -51,32 +51,16 @@ byte studySessionsInARow = 0;
 
 bool menuMode;
 
-MenuScreen studyTimeScreen = MenuScreen("Study time");
-
+MenuScreenInteger studyTimeScreen = MenuScreenInteger("Study time", [](){Serial.println("I'm lambda");});
+MenuItem studyMenuItem = MenuItem("Study time", &studyTimeScreen);
 MenuItem firstList[4] = {
-    {"Study time", &studyTimeScreen},
+    studyMenuItem,
     {"Break time"},
     {"Long Break time"},
     {"Cancel", [](){menuMode = false;}}
     };
 
 OledMenu menu = OledMenu(display, firstList, 4);
-
-void drawFrame(const unsigned char *frame, int size)
-{
-    Serial.print("Sprite size=");
-    Serial.println(size);
-    do
-    {
-        display.firstPage();
-        do
-        {
-            display.drawXBMP(0, 0, 64, 64, frame);
-        } while (display.nextPage());
-        frame += 512;
-        size -= 512;
-    } while (size > 0);
-}
 
 void fillArc(int x, int y, int radius, int startAngle, int endAngle)
 {
@@ -308,7 +292,8 @@ void initializeState()
     Serial.println("initializeState");
     state = STUDY_IDLE_STATE;
     tdown.setCounter(0, studyMinutes, 0);
-    //menuMode = true;
+    menuMode = true;
+    menu._activeItem = &studyMenuItem;
     reDrawScreen();
 }
 

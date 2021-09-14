@@ -23,6 +23,11 @@ String MenuItem::getName()
     return _name;
 }
 
+MenuScreen* MenuItem::getScreen()
+{
+    return _screen;
+}
+
 void MenuItem::enter()
 {
     Serial.print(F("enter:"));

@@ -1,7 +1,7 @@
 #include "Arduino.h"
 #include "OledMenu.h"
 
-OledMenu::OledMenu(U8G2 display, MenuItem* items, byte size)
+OledMenu::OledMenu(U8G2 display, MenuItem *items, byte size)
 {
     _display = display;
     _menuItemsLength = size;
@@ -24,6 +24,7 @@ void OledMenu::down()
 void OledMenu::enter()
 {
     _menuItems[_selectedMenuIndex].enter();
+    _activeItem = &(_menuItems[_selectedMenuIndex]);
 }
 
 void OledMenu::drawScreen()
@@ -57,9 +58,8 @@ void OledMenu::drawScreen()
             }
         } while (_display.nextPage());
     }
-
-    // else
-    // {
-    //_activeItem.d
-    // }
+    else
+    {
+        _activeItem->getScreen()->drawScreen(_display);
+    }
 }

@@ -1,19 +1,12 @@
 #include "Arduino.h"
 #include "MenuScreen.h"
 
-MenuScreen::MenuScreen(String name){
-    _name = name;
-
+void MenuScreen::up()
+{
 }
-void MenuScreen::drawScreen(U8G2 display){
-
+void MenuScreen::down()
+{
 }
-void MenuScreen::up(){
-
-}
-void MenuScreen::down(){
-
-}
-void MenuScreen::enter(){
-
+void MenuScreen::enter()
+{
 }

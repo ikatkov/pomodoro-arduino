@@ -7,13 +7,14 @@
 class MenuScreen
 {
 public:
-    MenuScreen(String name);
-    void drawScreen(U8G2 display);
+    MenuScreen(String name) : _name(name) {}
+
+    virtual void drawScreen(U8G2 display) = 0;
     void up();
     void down();
     void enter();
 
-private:
+protected:
     String _name;
 };
 

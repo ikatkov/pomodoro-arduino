@@ -13,6 +13,7 @@ public:
   MenuItem(String name, MenuScreen* screen);
   MenuItem(String name, callback_t callback);
   String getName();
+  MenuScreen* getScreen();
   void enter();
   bool isActive();
   void setActive(bool value);
