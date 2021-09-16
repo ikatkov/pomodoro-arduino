@@ -4,23 +4,22 @@
 #include "Arduino.h"
 #include "U8g2lib.h"
 #include "MenuItem.h"
-#include "MenuScreenInteger.h"
+#include "MenuList.h"
 
 class OledMenu
 {
 public:
-  OledMenu(U8G2 display, MenuItem *items, byte size);
-  void drawScreen();
+  OledMenu(U8G2 display, MenuItem *child) : _display(display), _active(child) {}
   void up();
   void down();
   void enter();
-  MenuItem *_activeItem;
+  void drawScreen();
 
 private:
   U8G2 _display;
-  MenuItem *_menuItems;
-  byte _menuItemsLength;
-  uint8_t _selectedMenuIndex;
+  MenuItem *_active;
+  MenuItem* topLevel;
+  MenuItem* screenLevel;
 };
 
 #endif

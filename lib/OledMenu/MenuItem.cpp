@@ -1,50 +1,19 @@
 #include "Arduino.h"
 #include "MenuItem.h"
 
-MenuItem::MenuItem(String name)
-{
-    _name = name;
+const MenuItem* MenuItem::BACK;
+
+void MenuItem::drawScreen(U8G2 display){
+    _child->drawScreen(display);
 }
 
-MenuItem::MenuItem(String name, callback_t callback)
+void MenuItem::up()
 {
-    _name = name;
-    _callback = callback;
+    _child->up();
 }
 
-MenuItem::MenuItem(String name, MenuScreen *screen)
+void MenuItem::down()
 {
-    _name = name;
-    _screen = screen;
+    _child->down();
 }
 
-String MenuItem::getName()
-{
-    Serial.print("MenuItem::getName");
-    Serial.println(_name);
-    return _name;
-}
-
-MenuScreen *MenuItem::getScreen()
-{
-    return _screen;
-}
-
-void MenuItem::enter()
-{
-    Serial.print(F("enter:"));
-    _active = true;
-    if (_callback)
-    {
-        _callback();
-    }
-}
-
-bool MenuItem::isActive()
-{
-    return _active;
-}
-void MenuItem::setActive(bool value)
-{
-    _active = value;
-}

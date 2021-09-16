@@ -1,6 +1,24 @@
 #include "Arduino.h"
 #include "MenuScreenInteger.h"
 
+
+void MenuScreenInteger::up()
+{
+    _selectedButton = (_selectedButton - 1) % 3;
+}
+void MenuScreenInteger::down()
+{
+    _selectedButton = (_selectedButton + 1) % 3;
+}
+
+MenuItem* MenuScreenInteger::enter()
+{
+    if(_callback){
+        _callback();
+    }
+    return NULL;
+}
+
 void MenuScreenInteger::drawScreen(U8G2 display)
 {
     display.clearDisplay();

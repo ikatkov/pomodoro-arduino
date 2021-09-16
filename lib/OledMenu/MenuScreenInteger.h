@@ -3,21 +3,23 @@
 
 #include "Arduino.h"
 #include "U8g2lib.h"
-#include "MenuScreen.h"
+#include "MenuItem.h"
 
-class MenuScreenInteger : public MenuScreen
+class MenuScreenInteger : public MenuItem
 {
 public:
-    typedef void (*callback_t)();
-
-    MenuScreenInteger(String name, callback_t callback) : MenuScreen(name), _callback(callback)
-    {
-    }
-
     void drawScreen(U8G2 display);
-
-private:
-    callback_t _callback;
+    void up();
+    void down();
+    MenuItem* enter();
+private:    
+    uint8_t _selectedButton;
+    typedef enum
+    {
+        DECREMENT = 0,
+        INCREMENT = 1,
+        OK = 2
+    } buttons;
 };
 
 #endif

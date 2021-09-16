@@ -51,6 +51,7 @@ byte studySessionsInARow = 0;
 
 bool menuMode;
 
+/*
 MenuScreenInteger studyTimeScreen = MenuScreenInteger("Study time", [](){Serial.println("I'm lambda");});
 MenuItem studyMenuItem = MenuItem("Study time", &studyTimeScreen);
 MenuItem firstList[4] = {
@@ -59,8 +60,10 @@ MenuItem firstList[4] = {
     {"Long Break time"},
     {"Cancel", [](){menuMode = false;}}
     };
+*/
 
-OledMenu menu = OledMenu(display, firstList, 4);
+OledMenu menu = OledMenu(display, NULL);
+
 
 void fillArc(int x, int y, int radius, int startAngle, int endAngle)
 {

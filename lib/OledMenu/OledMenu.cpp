@@ -1,82 +1,41 @@
 #include "Arduino.h"
 #include "OledMenu.h"
 
-OledMenu::OledMenu(U8G2 display, MenuItem *items, byte size)
-{
-    _display = display;
-    _menuItemsLength = size;
-    _menuItems = items;
-}
+//max nesting is 3
+const uint8_t MAX_DEPTH = 3;
+MenuItem *_stack[MAX_DEPTH] = {};
+uint8_t _pointer;
 
 void OledMenu::up()
 {
-    if (_activeItem == NULL)
-    {
-        _selectedMenuIndex = (_selectedMenuIndex - 1) % _menuItemsLength;
-    }
-    else
-    {
-        _activeItem->getScreen()->up();
-    }
+    _active->up();
+    _active->drawScreen(_display);
 }
 void OledMenu::down()
 {
-    if (_activeItem == NULL)
-    {
-        _selectedMenuIndex = (_selectedMenuIndex + 1) % _menuItemsLength;
-    }
-    else
-    {
-        _activeItem->getScreen()->down();
-    }
+    _active->down();
+    _active->drawScreen(_display);
 }
 
 void OledMenu::enter()
 {
-    if (_activeItem == NULL)
+    if (_pointer < MAX_DEPTH)
     {
-        _menuItems[_selectedMenuIndex].enter();
-        _activeItem = &(_menuItems[_selectedMenuIndex]);
-    }
-    else
-    {
-        _activeItem->getScreen()->enter();
+        _stack[_pointer] = _active;
+        _pointer++;
+
+        _active = _active->enter();
+        if (_active == MenuItem::BACK)
+        {
+            // go back
+            _pointer--;
+            _active = _stack[_pointer];
+        }
+        _active->drawScreen(_display);
     }
 }
 
 void OledMenu::drawScreen()
 {
-    Serial.println(F("OledMenu.drawScreen"));
-
-    if (_activeItem == NULL)
-    {
-        const byte fontHeigh = 13;
-        const byte offset = 1 + fontHeigh;
-        const byte lineSpacing = 1;
-        _display.setFont(u8g2_font_6x13_mf);
-
-        _display.firstPage();
-        do
-        {
-
-            for (int i = 0; i < _menuItemsLength; i++)
-            {
-                _display.setCursor(0, offset + i * (fontHeigh + lineSpacing));
-                if (i == _selectedMenuIndex)
-                {
-                    _display.print('>');
-                }
-                else
-                {
-                    _display.print(' ');
-                }
-                String name = _menuItems[i].getName();
-                _display.print(name);
-            }
-        } while (_display.nextPage());
-    }
-    else
-    {
-        _activeItem->getScreen()->drawScreen(_display);
-    }
+    _active->drawScreen(_display);
 }
