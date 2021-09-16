@@ -8,6 +8,11 @@ class MenuScreen
 {
 public:
     MenuScreen(String name) : _name(name) {}
+    typedef enum {
+        DECREMENT = 0,
+        INCREMENT = 1,
+        OK = 2
+    } buttons;
 
     virtual void drawScreen(U8G2 display) = 0;
     void up();
@@ -16,6 +21,7 @@ public:
 
 protected:
     String _name;
+    uint8_t _selectedButton;
 };
 
 #endif

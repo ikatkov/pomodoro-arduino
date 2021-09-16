@@ -292,8 +292,8 @@ void initializeState()
     Serial.println("initializeState");
     state = STUDY_IDLE_STATE;
     tdown.setCounter(0, studyMinutes, 0);
-    menuMode = true;
-    menu._activeItem = &studyMenuItem;
+    //menuMode = true;
+    //menu._activeItem = &studyMenuItem;
     reDrawScreen();
 }
 

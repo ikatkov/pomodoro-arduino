@@ -10,21 +10,38 @@ OledMenu::OledMenu(U8G2 display, MenuItem *items, byte size)
 
 void OledMenu::up()
 {
-
-    if (_selectedMenuIndex == 0)
-        _selectedMenuIndex = _menuItemsLength - 1;
+    if (_activeItem == NULL)
+    {
+        _selectedMenuIndex = (_selectedMenuIndex - 1) % _menuItemsLength;
+    }
     else
-        _selectedMenuIndex--;
+    {
+        _activeItem->getScreen()->up();
+    }
 }
 void OledMenu::down()
 {
-
-    _selectedMenuIndex = (_selectedMenuIndex + 1) % _menuItemsLength;
+    if (_activeItem == NULL)
+    {
+        _selectedMenuIndex = (_selectedMenuIndex + 1) % _menuItemsLength;
+    }
+    else
+    {
+        _activeItem->getScreen()->down();
+    }
 }
+
 void OledMenu::enter()
 {
-    _menuItems[_selectedMenuIndex].enter();
-    _activeItem = &(_menuItems[_selectedMenuIndex]);
+    if (_activeItem == NULL)
+    {
+        _menuItems[_selectedMenuIndex].enter();
+        _activeItem = &(_menuItems[_selectedMenuIndex]);
+    }
+    else
+    {
+        _activeItem->getScreen()->enter();
+    }
 }
 
 void OledMenu::drawScreen()

@@ -13,7 +13,7 @@ void MenuScreenInteger::drawScreen(U8G2 display)
 
         //title
         display.setFont(u8g2_font_6x13_mf);
-        display.setCursor(0,13);
+        display.setCursor(0, 13);
         display.print(_name);
 
         //buttons
@@ -24,9 +24,20 @@ void MenuScreenInteger::drawScreen(U8G2 display)
         display.drawStr(103, 60, "OK");
 
         //buttons selection frames
-        display.drawFrame(22, 22, 20, 20);
-        display.drawFrame(78, 22, 20, 20);
-        display.drawFrame(91, 48, 36, 16);
+        switch (_selectedButton)
+        {
+        case DECREMENT:
+            display.drawFrame(22, 22, 20, 20);
+            break;
+        case INCREMENT:
+            display.drawFrame(78, 22, 20, 20);
+            break;
+        case OK:
+            display.drawFrame(91, 48, 36, 16);
+            break;
+        default:
+            break;
+        }
 
         // integer setting
         display.setFont(u8g2_font_ncenB12_tn);
@@ -34,4 +45,3 @@ void MenuScreenInteger::drawScreen(U8G2 display)
 
     } while (display.nextPage());
 }
-

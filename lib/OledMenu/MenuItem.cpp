@@ -12,7 +12,7 @@ MenuItem::MenuItem(String name, callback_t callback)
     _callback = callback;
 }
 
-MenuItem::MenuItem(String name, MenuScreen* screen)
+MenuItem::MenuItem(String name, MenuScreen *screen)
 {
     _name = name;
     _screen = screen;
@@ -20,10 +20,12 @@ MenuItem::MenuItem(String name, MenuScreen* screen)
 
 String MenuItem::getName()
 {
+    Serial.print("MenuItem::getName");
+    Serial.println(_name);
     return _name;
 }
 
-MenuScreen* MenuItem::getScreen()
+MenuScreen *MenuItem::getScreen()
 {
     return _screen;
 }

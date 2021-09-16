@@ -20,7 +20,7 @@ private:
   U8G2 _display;
   MenuItem *_menuItems;
   byte _menuItemsLength;
-  byte _selectedMenuIndex;
+  uint8_t _selectedMenuIndex;
 };
 
 #endif
