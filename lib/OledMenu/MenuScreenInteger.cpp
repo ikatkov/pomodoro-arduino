@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "MenuScreenInteger.h"
 
+MenuScreenInteger::MenuScreenInteger(const char *name) : MenuItem(name) {}
 
 void MenuScreenInteger::up()
 {
@@ -11,12 +12,20 @@ void MenuScreenInteger::down()
     _selectedButton = (_selectedButton + 1) % 3;
 }
 
-MenuItem* MenuScreenInteger::enter()
+bool MenuScreenInteger::enter()
 {
-    if(_callback){
-        _callback();
+    if (_selectedButton != OK)
+    {
+        return true;
     }
-    return NULL;
+    else
+    {
+        if (_callback)
+        {
+            _callback();
+        }
+        return false;
+    }
 }
 
 void MenuScreenInteger::drawScreen(U8G2 display)

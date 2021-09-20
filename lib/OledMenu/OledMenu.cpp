@@ -1,41 +1,84 @@
 #include "Arduino.h"
 #include "OledMenu.h"
 
-//max nesting is 3
-const uint8_t MAX_DEPTH = 3;
-MenuItem *_stack[MAX_DEPTH] = {};
-uint8_t _pointer;
-
 void OledMenu::up()
 {
-    _active->up();
-    _active->drawScreen(_display);
+    if (_activeItem == NULL)
+    {
+        _selectedMenuIndex = uint8_t(_selectedMenuIndex - 1) % _menuLength;
+        Serial.println(_selectedMenuIndex);
+    }
+    else
+    {
+        _activeItem->up();
+        _activeItem->drawScreen(_display);
+    }
 }
 void OledMenu::down()
 {
-    _active->down();
-    _active->drawScreen(_display);
+    if (_activeItem == NULL)
+    {
+        _selectedMenuIndex = (_selectedMenuIndex + 1) % _menuLength;
+        Serial.println(_selectedMenuIndex);
+    }
+    else
+    {
+        _activeItem->down();
+        _activeItem->drawScreen(_display);
+    }
 }
 
 void OledMenu::enter()
 {
-    if (_pointer < MAX_DEPTH)
+    if (_activeItem == NULL)
     {
-        _stack[_pointer] = _active;
-        _pointer++;
-
-        _active = _active->enter();
-        if (_active == MenuItem::BACK)
+        if (_menuList[_selectedMenuIndex].enter())
         {
-            // go back
-            _pointer--;
-            _active = _stack[_pointer];
+            _activeItem = &_menuList[_selectedMenuIndex];
         }
-        _active->drawScreen(_display);
+    }
+    else
+    {
+        if (!_activeItem->enter())
+        {
+            _activeItem = NULL;
+        }
     }
 }
 
 void OledMenu::drawScreen()
 {
-    _active->drawScreen(_display);
+    Serial.println(F("OledMenu.drawScreen"));
+    if (_activeItem == NULL)
+    {
+        Serial.println(F("_activeItem == NULL"));
+        const byte fontHeigh = 13;
+        const byte offset = 1 + fontHeigh;
+        const byte lineSpacing = 1;
+        _display.setFont(u8g2_font_6x13_mf);
+
+        _display.firstPage();
+        do
+        {
+            for (int i = 0; i < _menuLength; i++)
+            {
+                _display.setCursor(0, offset + i * (fontHeigh + lineSpacing));
+                if (i == _selectedMenuIndex)
+                {
+                    _display.print(F(">"));
+                }
+                else
+                {
+                    _display.print(F(" "));
+                }
+                const char *name = _menuList[i].getName();
+                //Serial.println(name);
+                _display.print(name);
+            }
+        } while (_display.nextPage());
+    }
+    else
+    {
+        _activeItem->drawScreen(_display);
+    }
 }

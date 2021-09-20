@@ -8,25 +8,26 @@ class MenuItem
 {
 public:
   typedef void (*callback_t)();
-  static const MenuItem* BACK;
+  static const MenuItem *BACK;
 
-  MenuItem(MenuItem *child) : _child(child) {}
-  MenuItem(String name) : _name(name) {}
-  MenuItem(String name, MenuItem *child) : _name(name), _child(child) {}
-  MenuItem(String name, callback_t callback) : _name(name), _callback(callback) {}
+  MenuItem(const char *name) : _name(name) {};
+  MenuItem(const char *name, callback_t callback) : _name(name), _callback(callback) {}
 
-  String getName() { return _name; }
+  const char *getName()
+  {
+    return _name;
+  }
 
-  virtual void drawScreen(U8G2 display);
-  virtual void up();
-  virtual void down();
-  virtual MenuItem *enter() = 0;
+  virtual void drawScreen(U8G2 display) {}
+  virtual void up() {}
+  virtual void down() {} 
+
+  //return true if the menu item needs to remain active, return false if it's done
+  virtual bool enter();
 
 protected:
-  String _name;
+  const char *_name;
   callback_t _callback;
-  MenuItem *_child;
-  MenuItem *_parent;
 };
 
 #endif

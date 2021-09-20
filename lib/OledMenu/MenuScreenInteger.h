@@ -8,10 +8,11 @@
 class MenuScreenInteger : public MenuItem
 {
 public:
+    MenuScreenInteger(const char* name);
     void drawScreen(U8G2 display);
     void up();
     void down();
-    MenuItem* enter();
+    bool enter();
 private:    
     uint8_t _selectedButton;
     typedef enum

@@ -20,6 +20,7 @@ static const byte LONG_BREAK_RUNNING_STATE = 7;
 static const byte LONG_BREAK_STOPPED_STATE = 8;
 static const byte SHUTDOWN_STATE = -1;
 
+static const byte ENTER_BUTTON_PIN = 12;
 static const byte START_STOP_BUTTON_PIN = 11;
 static const byte NEXT_BUTTON_PIN = 10;
 static const byte BUZZER_PIN = 4;
@@ -40,6 +41,7 @@ Rtttl player; // Song player
 
 EasyButton startStopButton(START_STOP_BUTTON_PIN);
 EasyButton nextButton(NEXT_BUTTON_PIN);
+EasyButton enterButton(ENTER_BUTTON_PIN);
 
 byte state = STUDY_IDLE_STATE;
 Countimer tdown;
@@ -51,19 +53,16 @@ byte studySessionsInARow = 0;
 
 bool menuMode;
 
-/*
-MenuScreenInteger studyTimeScreen = MenuScreenInteger("Study time", [](){Serial.println("I'm lambda");});
-MenuItem studyMenuItem = MenuItem("Study time", &studyTimeScreen);
-MenuItem firstList[4] = {
-    studyMenuItem,
-    {"Break time"},
-    {"Long Break time"},
-    {"Cancel", [](){menuMode = false;}}
-    };
-*/
+void setRegularMode()
+{
+    menuMode = false;
+}
 
-OledMenu menu = OledMenu(display, NULL);
+MenuItem array[2] = {
+    MenuScreenInteger((const char *)"Study Time"),
+    MenuItem((const char *)"Exit", setRegularMode)};
 
+OledMenu menu = OledMenu(display, array, 2);
 
 void fillArc(int x, int y, int radius, int startAngle, int endAngle)
 {
@@ -179,7 +178,7 @@ void drawLongBreakSprite()
 
 void reDrawRegularScreen()
 {
-
+    Serial.println("reDrawRegularScreen");
     display.firstPage();
     do
     {
@@ -191,7 +190,6 @@ void reDrawRegularScreen()
             display.drawGlyph(60 + i * 15, 10, 67); //checkbox
         }
 
-        display.setFont(u8g2_font_ncenB12_tn);
         // Serial.print(tdown.getCurrentMinutes());
         // Serial.print(":");
         // Serial.println(tdown.getCurrentSeconds());
@@ -238,42 +236,13 @@ void reDrawRegularScreen()
         }
 
         // drat time string
+        display.setFont(u8g2_font_6x13_mf);
+        display.setDrawColor(1);
         char buffer[10];
         sprintf(buffer, "%02d:%02d", tdown.getCurrentMinutes(), tdown.getCurrentSeconds());
         display.drawStr(60, 64, buffer);
+        Serial.println(buffer);
     } while (display.nextPage());
-}
-
-void reDrawMenuScreen()
-{
-    Serial.println("reDrawMenuScreen");
-    menu.drawScreen();
-    /*
-    //9px tall font
-    byte fontHeigh = 9;
-    display.setFont(u8g2_font_6x13B_mf);
-    display.clearDisplay();
-    display.setDrawColor(1);
-    display.firstPage();
-    do
-    {
-        for (int i = 0; i < totalMenuElements; i++)
-        { // for each menu item
-            display.setCursor(0, 11 + i * 13);
-            if (i == currentMenuIndex)
-            {
-                display.drawBox(0, i*9, 128, 9);
-                display.setDrawColor(0);
-            }
-            else
-            {
-                display.setDrawColor(1);
-            }
-            display.print(menuItems[i]);
-        }
-
-    } while (display.nextPage());
-    */
 }
 
 void reDrawScreen()
@@ -282,7 +251,8 @@ void reDrawScreen()
     Serial.println(state);
     if (menuMode)
     {
-        reDrawMenuScreen();
+        Serial.println("reDrawMenuScreen");
+        menu.drawScreen();
     }
     else
     {
@@ -363,18 +333,13 @@ void onStartStopButtonPressedRegular()
     reDrawScreen();
 }
 
-void onStartStopButtonPressedMenu()
-{
-    Serial.print("onStartStopButtonPressedMenu");
-    menu.up();
-    reDrawScreen();
-}
-
 void onStartStopButtonPressed()
 {
     if (menuMode)
     {
-        onStartStopButtonPressedMenu();
+        Serial.print("onStartStopButtonPressedMenu");
+        menu.up();
+        reDrawScreen();
     }
     else
     {
@@ -451,18 +416,13 @@ void onNextButtonPressedRegular()
     reDrawScreen();
 }
 
-void onNextButtonPressedMenu()
-{
-    Serial.print("onNextButtonPressedMenu");
-    menu.down();
-    reDrawScreen();
-}
-
 void onNextButtonPressed()
 {
     if (menuMode)
     {
-        onNextButtonPressedMenu();
+        Serial.print("onNextButtonPressedMenu");
+        menu.down();
+        reDrawScreen();
     }
     else
     {
@@ -483,6 +443,24 @@ void onNextButtonPressedForDuration()
         menu.enter();
     }
     reDrawScreen();
+}
+
+void onEnterButtonPressed()
+{
+    Serial.println("onEnterButtonPressed");
+    if (!menuMode)
+    {
+        menuMode = true;
+    }
+    else
+    {
+        menu.enter();
+    }
+ 
+    // menuMode = true;
+    // reDrawScreen();
+    // menuMode = false;
+  reDrawScreen();
 }
 
 void eepromWrite()
@@ -524,9 +502,10 @@ void setup()
         delay(10);
 
     Serial.println("Setup");
-
     pinMode(START_STOP_BUTTON_PIN, INPUT_PULLUP);
     pinMode(NEXT_BUTTON_PIN, INPUT_PULLUP);
+    pinMode(ENTER_BUTTON_PIN, INPUT_PULLUP);
+
     pinMode(BUZZER_PIN, OUTPUT);
 
     startStopButton.begin();
@@ -537,6 +516,9 @@ void setup()
     nextButton.onPressed(onNextButtonPressed);
     nextButton.onPressedFor(1000, onNextButtonPressedForDuration);
 
+    enterButton.begin();
+    enterButton.onPressed(onEnterButtonPressed);
+
     player.begin(BUZZER_PIN);
 
     display.begin();
@@ -545,18 +527,12 @@ void setup()
     tdown.setCounter(0, 0, 0, CountType::COUNT_DOWN, onCountDownComplete);
 
     initializeState();
-
-
-    //[](){ Serial.println("lambda"); }))
-    //menu.addItem(LineItem("Study Time"));
-    // menu.addItem(LineItem("Break Time"));
-    // menu.addItem(LineItem("Long Break Time"));
-    // menu.addItem(LineItem("Cancel"));
 }
 
 void loop()
 {
     startStopButton.read();
     nextButton.read();
+    enterButton.read();
     tdown.run();
 }
