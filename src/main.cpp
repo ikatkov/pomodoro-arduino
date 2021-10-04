@@ -39,17 +39,18 @@ const char music2[] PROGMEM = "Don'tTur:d=4,o=5,b=100:16a#6,16g#6,16a#6,16g#6,8a
 const char music3[] PROGMEM = "Barbiegi:d=4,o=5,b=100:16a#6,16f#6,16a#6,16d#7,8a#6,8p,16g#6,16c#6,16g#6,16c#7,8a#6,8p";
 Rtttl player; // Song player
 
+EasyButton enterButton(ENTER_BUTTON_PIN);
 EasyButton startStopButton(START_STOP_BUTTON_PIN);
 EasyButton nextButton(NEXT_BUTTON_PIN);
-EasyButton enterButton(ENTER_BUTTON_PIN);
 
 byte state = STUDY_IDLE_STATE;
 Countimer tdown;
 
-byte studyMinutes = DEFAULT_STUDY_MINUTES;
-byte breakMinutes = DEFAULT_BREAK_MINUTES;
-byte longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
-byte studySessionsInARow = 0;
+uint8_t studyMinutes = DEFAULT_STUDY_MINUTES;
+uint8_t breakMinutes = DEFAULT_BREAK_MINUTES;
+uint8_t longBreakMinutes = DEFAULT_LONG_BREAK_MINUTES;
+uint8_t studySessionsInARow = 0;
+bool autoStartBreaks = true;
 
 bool menuMode;
 
@@ -58,11 +59,75 @@ void setRegularMode()
     menuMode = false;
 }
 
-MenuItem array[2] = {
-    MenuScreenInteger((const char *)"Study Time"),
-    MenuItem((const char *)"Exit", setRegularMode)};
+uint8_t getStudyTime();
+void setStudyTime(uint8_t value);
+uint8_t getBreakTime();
+void setBreakTime(uint8_t value);
+uint8_t getLongBreakTime();
+void setLongBreakTime(uint8_t value);
+uint8_t getAutoStartBreaks();
+void setAutoStartBreaks(uint8_t value);
+void eepromWrite();
+void eepromRead();
 
-OledMenu menu = OledMenu(display, array, 2);
+MenuItem PROGMEM menuList[5] = {
+    {"Study time", NUMBER, (MenuSetFunction)setStudyTime, (MenuGetFunction)getStudyTime, 1, 60},
+    {"Break time", NUMBER, (MenuSetFunction)setBreakTime, (MenuGetFunction)getBreakTime, 1, 60},
+    {"Long Break time", NUMBER, (MenuSetFunction)setLongBreakTime, (MenuGetFunction)getLongBreakTime, 1, 60},
+    {"Auto start breaks", TOGGLE, (MenuSetFunction)setAutoStartBreaks, (MenuGetFunction)getAutoStartBreaks, 0, 1},
+    {"Exit", EXIT, NULL}};
+
+OledMenu menu = OledMenu(display, menuList, 5);
+
+uint8_t getStudyTime()
+{
+    return studyMinutes;
+}
+
+void setStudyTime(uint8_t value)
+{
+    studyMinutes = value;
+    state = STUDY_IDLE_STATE;
+    tdown.setCounter(0, studyMinutes, 0);
+    eepromWrite();
+}
+
+uint8_t getBreakTime()
+{
+    return breakMinutes;
+}
+
+void setBreakTime(uint8_t value)
+{
+    breakMinutes = value;
+    state = BREAK_IDLE_STATE;
+    tdown.setCounter(0, breakMinutes, 0);
+    eepromWrite();
+}
+
+uint8_t getLongBreakTime()
+{
+    return longBreakMinutes;
+}
+
+void setLongBreakTime(uint8_t value)
+{
+    longBreakMinutes = value;
+    state = LONG_BREAK_IDLE_STATE;
+    tdown.setCounter(0, longBreakMinutes, 0);
+    eepromWrite();
+}
+
+uint8_t getAutoStartBreaks()
+{
+    return (autoStartBreaks == 1);
+}
+
+void setAutoStartBreaks(uint8_t value)
+{
+    autoStartBreaks = (value == 1);
+    eepromWrite();
+}
 
 void fillArc(int x, int y, int radius, int startAngle, int endAngle)
 {
@@ -235,23 +300,23 @@ void reDrawRegularScreen()
             break;
         }
 
-        // drat time string
+        // draw time string
         display.setFont(u8g2_font_6x13_mf);
         display.setDrawColor(1);
         char buffer[10];
         sprintf(buffer, "%02d:%02d", tdown.getCurrentMinutes(), tdown.getCurrentSeconds());
         display.drawStr(60, 64, buffer);
-        Serial.println(buffer);
+        //Serial.println(buffer);
     } while (display.nextPage());
 }
 
 void reDrawScreen()
 {
-    Serial.print("reDrawScreen, state = ");
+    Serial.print(F("reDrawScreen, state = "));
     Serial.println(state);
     if (menuMode)
     {
-        Serial.println("reDrawMenuScreen");
+        Serial.println(F("reDrawMenuScreen"));
         menu.drawScreen();
     }
     else
@@ -263,10 +328,11 @@ void reDrawScreen()
 void initializeState()
 {
     Serial.println("initializeState");
+    eepromRead();
+
     state = STUDY_IDLE_STATE;
     tdown.setCounter(0, studyMinutes, 0);
-    //menuMode = true;
-    //menu._activeItem = &studyMenuItem;
+    // menuMode = true;
     reDrawScreen();
 }
 
@@ -333,11 +399,12 @@ void onStartStopButtonPressedRegular()
     reDrawScreen();
 }
 
+//also works as menu-up
 void onStartStopButtonPressed()
 {
     if (menuMode)
     {
-        Serial.print("onStartStopButtonPressedMenu");
+        Serial.println("onStartStopButtonPressedMenu");
         menu.up();
         reDrawScreen();
     }
@@ -420,7 +487,7 @@ void onNextButtonPressed()
 {
     if (menuMode)
     {
-        Serial.print("onNextButtonPressedMenu");
+        Serial.println("onNextButtonPressedMenu");
         menu.down();
         reDrawScreen();
     }
@@ -451,16 +518,23 @@ void onEnterButtonPressed()
     if (!menuMode)
     {
         menuMode = true;
+        menu.reset();
     }
     else
     {
-        menu.enter();
+        if (menu.enter())
+        {
+            menuMode = false;
+        }
     }
- 
-    // menuMode = true;
-    // reDrawScreen();
-    // menuMode = false;
-  reDrawScreen();
+    reDrawScreen();
+}
+
+void onEnterButtonPressedForDuration()
+{
+    menu.exit();
+    menuMode = false;
+    reDrawScreen();
 }
 
 void eepromWrite()
@@ -468,13 +542,15 @@ void eepromWrite()
     EEPROM.write(0, studyMinutes);
     EEPROM.write(1, breakMinutes);
     EEPROM.write(2, longBreakMinutes);
+    EEPROM.write(3, autoStartBreaks ? (uint8_t)1 : (uint8_t)0);
 }
 
 void eepromRead()
 {
     studyMinutes = EEPROM.read(0);
     breakMinutes = EEPROM.read(1);
-    longBreakMinutes = EEPROM.read(3);
+    longBreakMinutes = EEPROM.read(2);
+    autoStartBreaks = EEPROM.read(3) == 1;
     Serial.print("original EEPROM read: ");
     Serial.print(studyMinutes);
     Serial.print(",");
@@ -492,7 +568,9 @@ void eepromRead()
     Serial.print(",");
     Serial.print(breakMinutes);
     Serial.print(",");
-    Serial.println(longBreakMinutes);
+    Serial.print(longBreakMinutes);
+    Serial.print(",");
+    Serial.println(autoStartBreaks);
 }
 
 void setup()
@@ -518,6 +596,7 @@ void setup()
 
     enterButton.begin();
     enterButton.onPressed(onEnterButtonPressed);
+    enterButton.onPressedFor(1000, onEnterButtonPressedForDuration);
 
     player.begin(BUZZER_PIN);
 
